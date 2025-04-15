@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>2D Color Picker with Hue</title>
+  <style>
+    canvas {
+      border: 1px solid #ccc;
+      display: block;
+      image-rendering: pixelated;
+      cursor: crosshair;
+    }
+    #colorInfo {
+      margin-top: 10px;
+      font-family: sans-serif;
+    }
+    #colorPreview {
+      display: inline-block;
+      width: 32px;
+      height: 32px;
+      border: 1px solid #888;
+      vertical-align: middle;
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h3>2D Color Picker + Hue Bar</h3>
+  <canvas id="colorCanvas" width="256" height="256"></canvas>
+  <canvas id="hueCanvas" width="256" height="20"></canvas>
+
+  <div id="colorInfo">
+    <div id="colorPreview"></div>
+    <span id="rgbText"></span><br>
+    <span id="hexText"></span>
+  </div>
+
+  <script>
+    const colorCanvas = document.getElementById("colorCanvas");
+    const hueCanvas = document.getElementById("hueCanvas");
+    const colorCtx = colorCanvas.getContext("2d");
+    const hueCtx = hueCanvas.getContext("2d");
+
+    const width = colorCanvas.width;
+    const height = colorCanvas.height;
+
+    let currentHue = 200;
+
+    function hsvToRgb(h, s, v) {
+      let f = (n, k = (n + h / 60) % 6) =>
+        v - v * s * Math.max(Math.min(k, 4 - k, 1), 0);
+      return [f(5) * 255, f(3) * 255, f(1) * 255];
+    }
+
+    function rgbToHex(r, g, b) {
+      return "#" + [r, g, b].map(x => Math.round(x).toString(16).padStart(2, '0')).join('');
+    }
+
+    function drawColorPalette(hue) {
+      const imgData = colorCtx.createImageData(width, height);
+      const data = imgData.data;
+
+      for (let y = 0; y < height; y++) {
+        let s = y / height;
+        for (let x = 0; x < width; x++) {
+          let v = x / width;
+          const [r, g, b] = hsvToRgb(hue, s, v);
+          const idx = (y * width + x) * 4;
+          data[idx] = r;
+          data[idx + 1] = g;
+          data[idx + 2] = b;
+          data[idx + 3] = 255;
+        }
+      }
+
+      colorCtx.putImageData(imgData, 0, 0);
+    }
+
+    function drawHueBar() {
+      const imgData = hueCtx.createImageData(width, 1);
+      const data = imgData.data;
+
+      for (let x = 0; x < width; x++) {
+        const hue = x / width * 360;
+        const [r, g, b] = hsvToRgb(hue, 1, 1);
+        const idx = x * 4;
+        data[idx] = r;
+        data[idx + 1] = g;
+        data[idx + 2] = b;
+        data[idx + 3] = 255;
+      }
+
+      for (let y = 0; y < hueCanvas.height; y++) {
+        hueCtx.putImageData(imgData, 0, y);
+      }
+    }
+
+    function updateHueFromClick(x) {
+      currentHue = (x / width) * 360;
+      drawColorPalette(currentHue);
+    }
+
+    hueCanvas.addEventListener("mousedown", (e) => {
+      const rect = hueCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      updateHueFromClick(x);
+    });
+
+    hueCanvas.addEventListener("mousemove", (e) => {
+      if (e.buttons !== 1) return;
+      const rect = hueCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      updateHueFromClick(x);
+    });
+
+    colorCanvas.addEventListener("mousedown", (e) => {
+      const rect = colorCanvas.getBoundingClientRect();
+      const x = Math.floor(e.clientX - rect.left);
+      const y = Math.floor(e.clientY - rect.top);
+
+      const img = colorCtx.getImageData(x, y, 1, 1).data;
+      const [r, g, b] = [img[0], img[1], img[2]];
+      const hex = rgbToHex(r, g, b);
+
+      document.getElementById("colorPreview").style.backgroundColor = hex;
+      document.getElementById("rgbText").textContent = `RGB: (${r}, ${g}, ${b})`;
+      document.getElementById("hexText").textContent = `HEX: ${hex}`;
+    });
+
+    // 初期描画
+    drawHueBar();
+    drawColorPalette(currentHue);
+  </script>
+</body>
+</html>
+
